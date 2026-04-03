@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../generated/client'
+
 
 const prismaClientSingleton = () => {
     // Prevent Prisma from establishing connections during static analysis if no DB is available
