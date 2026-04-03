@@ -1,23 +1,29 @@
 import { PrismaClient } from '@prisma/client'
 
+let _prisma: PrismaClient | null = null;
 
+const getPrisma = () => {
+    if (_prisma) return _prisma;
 
-const prismaClientSingleton = () => {
-    // Prevent Prisma from establishing connections during static analysis if no DB is available
     if (process.env.NEXT_PHASE === 'phase-production-build') {
         return {} as any;
     }
-    return new PrismaClient({
+
+    console.log('[Prisma] Initializing Client. Engine:', process.env.PRISMA_CLIENT_ENGINE_TYPE || 'default');
+
+    _prisma = new PrismaClient({
         log: ['error'],
-    })
-}
+    });
 
-declare const globalThis: {
-    prismaGlobal: ReturnType<typeof prismaClientSingleton>;
-} & typeof global;
+    return _prisma;
+};
 
-const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
+// Use a Proxy to allow standard 'prisma.user.findMany()' syntax while deferring initialization
+const prisma = new Proxy({} as PrismaClient, {
+    get: (target, prop, receiver) => {
+        const client = getPrisma();
+        return Reflect.get(client, prop, receiver);
+    }
+});
 
-export default prisma
-
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma
+export default prisma;
